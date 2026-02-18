@@ -9,7 +9,7 @@
   <!-- Open Graph Meta Tags for Social Sharing -->
 <meta property="og:title" content="Tadpole Trials 2 – A Biology Revision Game">
 <meta property="og:description" content="A fun biology revision platformer. Collect brains, answer questions, and help Tadpole make it home!">
-<meta property="og:image" content="https://svkhhnulgictmdvqvwte.supabase.co/storage/v1/object/public/Tadpole%20Trials%202/Tadpole%20Trials%202%20Image.png">
+<meta property="og:image" content="https://svkhhnulgictmdvqvwte.supabase.co/storage/v1/object/public/Tadpole%20Trials%202/Tadpole%20Trials%202%20Social.png">
 <meta property="og:url" content="https://tadpoletrials.1strankbiology.com">
 <meta property="og:type" content="website">
 
@@ -17,7 +17,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Tadpole Trials 2 – A Biology Revision Game">
 <meta name="twitter:description" content="Collect and answer biology questions in this fun platformer. Can you help Tadpole get home?">
-<meta name="twitter:image" content="https://svkhhnulgictmdvqvwte.supabase.co/storage/v1/object/public/Tadpole%20Trials%202/Tadpole%20Trials%202%20Image.png">
+<meta name="twitter:image" content="https://svkhhnulgictmdvqvwte.supabase.co/storage/v1/object/public/Tadpole%20Trials%202/Tadpole%20Trials%202%20Social.png">
 
   <style>
     /* Logo link styles */
@@ -287,6 +287,18 @@ header a:hover {
       gap: 8px;
       font-size: 1.1rem;
       margin: 8px 0;
+    }
+
+
+    .quiz-score-pill{
+      margin: 8px 0 14px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(0, 100, 200, 0.25);
+      border: 1px solid rgba(0, 204, 255, 0.7);
+      display: inline-block;
+      font-weight: 700;
+      color: #aaffff;
     }
     
     .brain-icon {
@@ -914,7 +926,32 @@ header a:hover {
   }
 }
 
-</style>
+
+    /* Mobile: keep character options side-by-side */
+    @media (max-width: 520px) {
+      .characters{
+        gap: 10px;
+        flex-wrap: nowrap;
+      }
+      .char-option{
+        width: 95px;
+        height: 120px;
+        padding: 8px;
+      }
+      .char-icon{
+        font-size: 2.2rem;
+        margin-bottom: 6px;
+      }
+      .char-name{
+        font-size: 0.85rem;
+      }
+      .char-description{
+        font-size: 0.7rem;
+        margin-top: 4px;
+      }
+    }
+
+  </style>
 </head>
 <body>
 <!-- Responsive Game Banner + Footer Branding -->
@@ -1077,6 +1114,7 @@ header a:hover {
         <span class="brain-icon">🧠</span> 
         <span id="collectedCount">0</span> Collected
       </div>
+      <div class="quiz-score-pill">🏆 Score: <span id="pointsDisplayQuiz">0</span></div>
       <h3 id="questionText"></h3>
       <div id="optionsContainer"></div>
     </div>
@@ -1096,14 +1134,10 @@ header a:hover {
       <h2>Congratulations!</h2>
       <div id="reunionRow" style="font-size: 3rem; margin: 6px 0 10px; letter-spacing: 8px;">💧 ⚡ 🔥</div>
       <h3 id="finalText"></h3>
-      <div id="sharePreviewWrap" style="margin:14px auto 0; max-width:600px; width:92%; display:none;">
-        <div style="color: rgba(255,255,255,0.75); font-size:14px; margin-bottom:8px;">Share preview:</div>
-        <img id="sharePreview" alt="Share card preview" style="width:100%; height:auto; border-radius:14px; box-shadow:0 10px 26px rgba(0,0,0,0.20); display:block;" />
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px;">
+        <button id="shareBtn">Beat My Score</button>
+        <button id="restartBtn">Play Again</button>
       </div>
-<div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:12px;">
-  <button id="shareBtn">Share Score</button>
-  <button id="restartBtn">Play Again</button>
-</div>
     </div>
   </div>
 
@@ -1213,7 +1247,13 @@ function addPoints(base){
   const gained = Math.round(base * livesMultiplier());
   gameState.points += gained;
   gameState.levelPoints += gained;
+  updatePointsUI();
   return gained;
+}
+
+function updatePointsUI(){
+  // Only update if the element exists (quiz screen)
+  if (pointsDisplayQuiz) pointsDisplayQuiz.textContent = gameState.points;
 }
 
 function startLevelScoring(){
@@ -1242,10 +1282,6 @@ function applyWipePenalty(){
 
 const shareBtn = document.getElementById('shareBtn');
 
-const SHARE_ASSETS = {
-  banner: "https://svkhhnulgictmdvqvwte.supabase.co/storage/v1/object/public/Tadpole%20Trials%202/TadpoleTrials2%20Banner2.png"
-};
-
 function getModeLabel(){
   return (gameState.selectedTopic === "vce") ? "VCE Biology" : "Biology Trivia";
 }
@@ -1257,144 +1293,43 @@ function getCharacterLabel(){
   return { name: "Bubbles", emoji: "💧" };
 }
 
-async function buildShareCardDataURL(){
-  // Share card size: social-friendly
-  const W = 1200;
-  const H = 630;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const c = canvas.getContext('2d');
-
-  // Background
-  const bg = c.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#0b2b4a");
-  bg.addColorStop(1, "#081a2e");
-  c.fillStyle = bg;
-  c.fillRect(0, 0, W, H);
-
-  // Banner (best effort, with CORS + fallback)
-  await new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const bannerH = 220;
-      c.drawImage(img, 0, 0, W, bannerH);
-      // subtle separator
-      c.fillStyle = "rgba(0,0,0,0.25)";
-      c.fillRect(0, 220, W, 6);
-      resolve();
-    };
-    img.onerror = () => {
-      // Fallback: title text (never break share)
-      c.fillStyle = "rgba(255,255,255,0.95)";
-      c.font = "bold 64px Segoe UI, Arial";
-      c.fillText("Tadpole Trials 2", 60, 140);
-      resolve();
-    };
-    img.src = SHARE_ASSETS.banner;
-  });
-
-  const mode = getModeLabel();
-  const ch = getCharacterLabel();
-  const score = gameState.points;
-
-  // Main text
-  c.fillStyle = "rgba(255,255,255,0.95)";
-  c.font = "bold 64px Segoe UI, Arial";
-  c.fillText(`Game Score: ${score}`, 60, 340);
-      c.font = "bold 40px Segoe UI, Arial";
-      c.fillStyle = "rgba(255,255,255,0.90)";
-      c.fillText(`Quiz Score: ${gameState.overall.correct}/${gameState.overall.total}`, 60, 395);
-
-  c.font = "bold 40px Segoe UI, Arial";
-  c.fillStyle = "rgba(170, 255, 255, 0.95)";
-  c.fillText(`Mode: ${mode}`, 60, 455);
-
-  // Character badge
-  c.fillStyle = "rgba(255,255,255,0.10)";
-  c.fillRect(60, 450, 520, 140);
-
-  c.font = "bold 42px Segoe UI, Arial";
-  c.fillStyle = "rgba(255,255,255,0.95)";
-  c.fillText(`Character: ${ch.name}`, 120, 520);
-
-  c.font = "72px Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji";
-  c.fillText(ch.emoji, 70, 528);
-
-  // Footer
-  c.font = "28px Segoe UI, Arial";
-  c.fillStyle = "rgba(255,255,255,0.75)";
-  c.fillText("1strankbiology.com", 60, 600);
-
-  // Export
-  try {
-    return canvas.toDataURL("image/png");
-  } catch (e) {
-    // If canvas becomes tainted by CORS, fallback to a text-only card
-    const fallback = document.createElement('canvas');
-    fallback.width = W; fallback.height = H;
-    const f = fallback.getContext('2d');
-    f.fillStyle = "#081a2e"; f.fillRect(0,0,W,H);
-    f.fillStyle = "#fff"; f.font = "bold 64px Segoe UI, Arial";
-    f.fillText("Tadpole Trials 2", 60, 140);
-    f.fillText(`Score: ${score}`, 60, 280);
-    f.font = "bold 40px Segoe UI, Arial";
-    f.fillText(`Mode: ${mode}`, 60, 360);
-    f.fillText(`Character: ${ch.name} ${ch.emoji}`, 60, 430);
-    f.font = "28px Segoe UI, Arial";
-    f.fillStyle = "rgba(255,255,255,0.75)";
-    f.fillText("1strankbiology.com", 60, 600);
-    return fallback.toDataURL("image/png");
-  }
+function getRank(score){
+  if(score >= 7000) return { name: "Pond Legend", emoji: "👑" };
+  if(score >= 4500) return { name: "Element Master", emoji: "🔥" };
+  if(score >= 2500) return { name: "Storm Survivor", emoji: "⚡" };
+  if(score >= 1000) return { name: "Pond Explorer", emoji: "🌱" };
+  return { name: "Tadpole Beginner", emoji: "🐣" };
 }
 
 async function shareScore(){
   const mode = getModeLabel();
   const ch = getCharacterLabel();
-  const text = `I scored ${gameState.points} in Tadpole Trials 2! Quiz: ${gameState.overall.correct}/${gameState.overall.total}. Character: ${ch.name} | Mode: ${mode}`;
+  const rank = getRank(gameState.points);
 
-  // Build image (best effort)
-  const dataUrl = await buildShareCardDataURL();
+  const url = window.location.href.split('#')[0];
+  const text = `I reached ${rank.name} ${rank.emoji} in Tadpole Trials 2!\nScore: ${gameState.points} | Quiz: ${gameState.overall.correct}/${gameState.overall.total}\nCharacter: ${ch.name} | Mode: ${mode}\n\nCan you beat me?\n${url}`;
 
-      // Show preview on the final screen
-      const preview = document.getElementById("sharePreview");
-      const wrap = document.getElementById("sharePreviewWrap");
-      if(preview && wrap){ preview.src = dataUrl; wrap.style.display = "block"; }
-
-  // Convert dataURL to blob/file
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
-  const file = new File([blob], "tadpole-trials-2-score.png", { type: "image/png" });
-
-  // Try native share (mobile), else download + copy text
-  if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+  // Prefer native share on mobile (text + url only)
+  if(navigator.share){
     try {
-      await navigator.share({ text, files: [file], title: "Tadpole Trials 2 Score" });
+      await navigator.share({ title: "Tadpole Trials 2", text, url });
       return;
-    } catch (e) {
-      // fall through to download
+    } catch(e) {
+      // user cancelled or share not available - fall back to clipboard
     }
   }
 
-  // Download fallback
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = "tadpole-trials-2-score.png";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  // Copy text fallback
+  // Clipboard fallback
   try { await navigator.clipboard.writeText(text); } catch(e) {}
-  alert("Share image downloaded. Score text copied (if supported).");
+  alert("Link copied! Paste it anywhere to challenge someone to beat your score.");
 }
-    const questionText = document.getElementById('questionText');
+const questionText = document.getElementById('questionText');
     const optionsContainer = document.getElementById('optionsContainer');
     const scoreSummary = document.getElementById('scoreSummary');
     const finalText = document.getElementById('finalText');
 
     const collectedCount = document.getElementById('collectedCount');
+    const pointsDisplayQuiz = document.getElementById('pointsDisplayQuiz');
     const levelIndicator = document.querySelector('.level-indicator');
     const deathOverlay = document.getElementById('deathOverlay');
     const introOverlay = document.getElementById('introOverlay');
@@ -6009,6 +5944,7 @@ else if (p.type === 'electric-flash') {
 
     // Show current question
     function showQuestion() {
+      updatePointsUI();
       if (gameState.currentQuestion >= gameState.quizQuestions.length) {
         showScoreScreen();
         return;
@@ -6108,10 +6044,13 @@ else if (p.type === 'electric-flash') {
       showScreen(finalScreen);
 
       const scoreStr = `${gameState.overall.correct}/50`;
+      const rank = getRank(gameState.points);
       finalText.innerHTML =
-        `Tadpole made it home safely 🐸🏁<br><br>
+        `Tadpole made it home to the pond 🐸🏁<br><br>
+        <b>Rank:</b> ${rank.emoji} ${rank.name}<br>
         <b>Game Score:</b> ${gameState.points}<br>
         <b>Quiz Score:</b> ${gameState.overall.correct}/${gameState.overall.total}<br><br>
+        Tap <b>Beat My Score</b> to challenge a friend.<br><br>
         Created by Aaron Gillespie — good luck with your studies!`;
 }
 
